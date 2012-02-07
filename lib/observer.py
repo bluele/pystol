@@ -53,7 +53,6 @@ class SyncEventHandler(FileSystemEventHandler):
         ファイル更新時イベント
         ファイルのときはインデックス更新
         ディレクトリのときはファイルが追加されたときとかそういうイベントなので、無視
-        @warning: ファイル更新の際はなぜか２度呼ばれるので処理削減のためにチェック
         '''
         if not event.is_directory:
             self.refresh_file(event.src_path)
@@ -107,7 +106,6 @@ class Watcher(Observer):
     @synchronized
     def unschedule(self, path):
         ''' 
-        @todo: メソッド内にインデックスからの削除処理を入れる
         @summary: 監視リストから指定したファイルパスを監視するwatchを除去する
                 　整理はしていない
         @warning:  Linuxのみwatchスレッドが死んでいない テスト&要修正

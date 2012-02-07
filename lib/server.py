@@ -20,7 +20,7 @@ class RequestMethodMixIn():
         @return: str: response
         '''
         try:
-            self.watcher.schedule(path, recursive)
+            self.server.watcher.schedule(path, recursive)
         except AlreadyAddPathError:
             return "AlreadyAddPathError"
         else:
@@ -30,12 +30,18 @@ class RequestMethodMixIn():
         '''
         @summary: 監視パスから外す & インデックスから除去
         '''
+        try:
+            self.server.watcher.unschedule(path)
+        except:
+            raise
+        else:
+            return "Remove %s" % os.path.abspath(path)
 
     def find(self, query):
         '''
         @summary: search query for index
         '''
-        path_list = self.watcher.find(query)
+        path_list = self.server.watcher.find(query)
         if len(path_list) <= 0:
             return "No such file."
         path = "\n".join(path_list)
@@ -83,16 +89,19 @@ class RequestHandler(SocketServer.BaseRequestHandler, RequestMethodMixIn):
         response = ""
         try:
             d = pickle.loads(data)
-            if d['method'] == 'ADD':
+            method = d['method']
+            if method == 'ADD':
                 response = self.add(d['content'])
-            elif d['method'] == 'REMOVE':
+            elif method == 'REMOVE':
                 response = self.remove(d['content'])      
-            elif d['method'] == 'FIND':
+            elif method == 'FIND':
                 response = self.find(d['content'])
-            elif d['method'] == 'UPDATE':
+            elif method == 'UPDATE':
                 response = self.update(d['content'])
+            elif method == 'STOP':
+                self.server.stop()
             else:
-                raise Exception("'%s' is unknown method." % (d['method'],))
+                raise Exception("'%s' is unknown method." % (method,))
         except pickle.PicklingError, err:
             response = err
         except Exception, err:
@@ -104,13 +113,9 @@ class RequestHandler(SocketServer.BaseRequestHandler, RequestMethodMixIn):
 
 
 class PystolServer(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
-    '''
-    @summary: メインサーバー
-    '''
     
     def __init__(self, server_address, handler_class=RequestHandler):
         self.watcher = Watcher(MasterIndex())
-        handler_class.watcher = self.watcher
         SocketServer.TCPServer.__init__(self, server_address, handler_class)
     
     def run(self, daemon=False):
